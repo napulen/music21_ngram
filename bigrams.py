@@ -81,12 +81,35 @@ def printUnique(bigramDict):
 				file, start, end = l
 				print('\t{}, {}-{}'.format(file, start/2.0, end/2.0))
 
+# Print iterations progress
+def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '█'):
+    """
+    Call in a loop to create terminal progress bar
+    @params:
+        iteration   - Required  : current iteration (Int)
+        total       - Required  : total iterations (Int)
+        prefix      - Optional  : prefix string (Str)
+        suffix      - Optional  : suffix string (Str)
+        decimals    - Optional  : positive number of decimals in percent complete (Int)
+        length      - Optional  : character length of bar (Int)
+        fill        - Optional  : bar fill character (Str)
+    """
+    percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
+    filledLength = int(length * iteration // total)
+    bar = fill * filledLength + '-' * (length - filledLength)
+    print('\r%s |%s| %s%% %s' % (prefix, bar, percent, suffix), end = '\r')
+    # Print New Line on Complete
+    if iteration == total: 
+        print()
 
 if __name__ == '__main__':
 	allIntervalBigrams = {}
-	for filename in os.listdir("."):
-		if filename.endswith(".krn"):
-			s = music21.converter.parse(filename)
+	srcdir = ".."
+	filenames = os.listdir(srcdir)
+	for idx,filename in enumerate(filenames):
+		printProgressBar(idx, len(filenames), "Progress", "Complete")
+		if filename.endswith(".krn"):						
+			s = music21.converter.parse(os.path.join(srcdir, filename))
 			onsets = getOnsets(s)
 			bigrams = getBigrams(onsets)
 			intervalBigrams = getIntervals(bigrams)
