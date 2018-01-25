@@ -7,33 +7,33 @@ Receives a Music21 score and outputs a list of simultaneous onsets in the outer 
 The "resolution" is set for 8th notes by default (0.5 of a quarter). Rests are ignored.
 '''
 def getOnsets(score, resolution=0.5):
-	onsets = []
+	b = music21.note.Rest
+	s = music21.note.Rest
+	onsets = [[-1.0, b, s]]
 
 	# Soprano is usually the first spine (right to left)
 	soprano = score[0]
-	soprano = soprano.flat.getElementsByClass(music21.note.Note)
+	soprano = soprano.flat.getElementsByClass([music21.note.Note, music21.note.Rest])
 
 	# Bass is the last spine (right to left)
 	bass = score[-1]
-	bass = bass.flat.getElementsByClass(music21.note.Note)
+	bass = bass.flat.getElementsByClass([music21.note.Note, music21.note.Rest])
 	
 	# Get the offset from the last note of the score
-	ns = score.flat.getElementsByClass(music21.note.Note)
+	ns = score.flat.getElementsByClass([music21.note.Note, music21.note.Rest])
 	lastOffset = ns[-1].offset
-
-	b = music21.note.Rest(quarterLength=bass[0].offset)
-	s = music21.note.Rest(quarterLength=soprano[0].offset)
 	
-	for offset in np.arange(0, lastOffset+resolution, resolution):
+	for offset in np.arange(0.0, lastOffset+resolution, resolution):
 		bs = bass.getElementsByOffset(offset)
 		ss = soprano.getElementsByOffset(offset)
-		if len(bs) == 1 or len(ss) == 1:
-			if len(bs) == 1:
+		notesOnBass = len(bs) == 1
+		notesOnSoprano = len(ss) == 1
+		if notesOnBass or notesOnSoprano:
+			if notesOnBass:
 				b = bs[0]
-			if len(ss) == 1: 
-				s = ss[0]
-			if not b.isRest and not s.isRest:			
-				onsets.append([offset, b, s])
+			if notesOnSoprano: 
+				s = ss[0]			
+			onsets.append([offset, b, s])
 	return onsets
 
 '''
@@ -52,10 +52,40 @@ def getIntervals(bigrams):
 		offset1, bass1, soprano1 = bigram[0]
 		offset2, bass2, soprano2 = bigram[1]
 		# Compute intervals
-		H1 = music21.interval.Interval(bass1, soprano1)
-		Mbass = music21.interval.Interval(bass1, bass2)
-		Msoprano = music21.interval.Interval(soprano1, soprano2)
-		H2 = music21.interval.Interval(bass2, soprano2)
+		# Harmonic 1
+		if bass1.isRest or soprano1.isRest:
+			H1 = music21.interval.Interval()
+			H1.name = "-"
+		else:
+			H1 = music21.interval.Interval(bass1, soprano1)
+
+		# Melodic in the bass
+		if bass1.isRest and not bass2.isRest:
+			Mbass = music21.interval.Interval()
+			Mbass.directedName = "X"
+		elif bass2.isRest:
+			Mbass = music21.interval.Interval()
+			Mbass.directedName = "-"
+		else:
+			Mbass = music21.interval.Interval(bass1, bass2)
+
+		# Melodic in the soprano
+		if soprano1.isRest and not soprano2.isRest:
+			Msoprano = music21.interval.Interval()
+			Msoprano.directedName = "X"
+		elif soprano2.isRest:
+			Msoprano = music21.interval.Interval()
+			Msoprano.directedName = "-"
+		else:
+			Msoprano = music21.interval.Interval(soprano1, soprano2)
+
+		# Harmonic 2
+		if bass2.isRest or soprano2.isRest:
+			H2 = music21.interval.Interval()
+			H2.name = "-"
+		else:
+			H2 = music21.interval.Interval(bass2, soprano2)
+
 		intervalBigrams.append((offset1, offset2, '({} [{} {}] {})'.format(H1.name, Mbass.directedName, Msoprano.directedName, H2.name)))
 	return intervalBigrams
 
@@ -67,8 +97,7 @@ def printAll(bigramDict):
 		print(interval)
 		for l in locations:
 			file, start, end = l
-			print('\t{}, {}-{}'.format(file, start/2.0, end/2.0))
-
+			print('\t{}, {}-{}'.format(file, start, end))
 
 '''
 Prints unique bigram interval strings
@@ -79,7 +108,7 @@ def printUnique(bigramDict):
 			print(interval)
 			for l in locations:
 				file, start, end = l
-				print('\t{}, {}-{}'.format(file, start/2.0, end/2.0))
+				print('\t{}, {}-{}'.format(file, start, end))
 
 # Print iterations progress
 def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '█'):
@@ -104,10 +133,10 @@ def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, 
 
 if __name__ == '__main__':
 	allIntervalBigrams = {}
-	srcdir = ".."
+	srcdir = "/Users/napulen/dev/humdrum-haydn-quartets/kern/op20"
 	filenames = os.listdir(srcdir)
 	for idx,filename in enumerate(filenames):
-		printProgressBar(idx, len(filenames), "Progress", "Complete")
+		printProgressBar(idx, len(filenames), "Progress", filename)
 		if filename.endswith(".krn"):						
 			s = music21.converter.parse(os.path.join(srcdir, filename))
 			onsets = getOnsets(s)
@@ -118,7 +147,7 @@ if __name__ == '__main__':
 					allIntervalBigrams[interval] = [(filename, startOffset, endOffset)]
 				else:
 					allIntervalBigrams[interval].append((filename, startOffset, endOffset))
-	printUnique(allIntervalBigrams)
+	printAll(allIntervalBigrams)
 
 
 
