@@ -12,27 +12,29 @@ def getOnsets(score, resolution=0.5):
 	onsets = [[-1.0, b, s]]
 
 	# Soprano is usually the first spine (right to left)
-	soprano = score[0]
-	soprano = soprano.flat.getElementsByClass([music21.note.Note, music21.note.Rest])
+	soprano = score.parts[0]
+	soprano = soprano.flat.notesAndRests.stream()
 
 	# Bass is the last spine (right to left)
-	bass = score[-1]
-	bass = bass.flat.getElementsByClass([music21.note.Note, music21.note.Rest])
+	bass = score.parts[-1]
+	bass = bass.flat.notesAndRests.stream()
 	
 	# Get the offset from the last note of the score
-	ns = score.flat.getElementsByClass([music21.note.Note, music21.note.Rest])
+	ns = score.flat.notesAndRests.stream()
 	lastOffset = ns[-1].offset
 	
 	for offset in np.arange(0.0, lastOffset+resolution, resolution):
 		bs = bass.getElementsByOffset(offset)
 		ss = soprano.getElementsByOffset(offset)
-		notesOnBass = len(bs) == 1
-		notesOnSoprano = len(ss) == 1
+		bs = [n for n in bs if not type(n) == music21.chord.Chord]
+		ss = [n for n in ss if not type(n) == music21.chord.Chord]
+		notesOnBass = (len(bs) == 1)
+		notesOnSoprano = (len(ss) == 1)
 		if notesOnBass or notesOnSoprano:
 			if notesOnBass:
 				b = bs[0]
-			if notesOnSoprano: 
-				s = ss[0]			
+			if notesOnSoprano:
+				s = ss[0]
 			onsets.append([offset, b, s])
 	return onsets
 
@@ -133,7 +135,7 @@ def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, 
 
 if __name__ == '__main__':
 	allIntervalBigrams = {}
-	srcdir = "/Users/napulen/dev/humdrum-haydn-quartets/kern/op20"
+	srcdir = "/home/napulen/dev/haydn_op20_harm/all"
 	filenames = os.listdir(srcdir)
 	for idx,filename in enumerate(filenames):
 		printProgressBar(idx, len(filenames), "Progress", filename)
